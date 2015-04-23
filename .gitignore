@@ -1,2 +1,4 @@
 _SpecRunner.html
 composer.lock
+node_modules/
+.idea/
