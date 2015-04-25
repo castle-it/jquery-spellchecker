@@ -1,10 +1,5 @@
-/*
- * jQuery Spellchecker - v0.2.4 - 2012-12-19
- * https://github.com/badsyntax/jquery-spellchecker
- * Copyright (c) 2012 Richard Willis; Licensed MIT
- */
-
-(function(window, $) {
+/*\n * jQuery Spellchecker - v0.2.5 - 2015-04-25\n * https://github.com/castle-it/jquery-spellchecker
+ * Copyright (c) 2015 Richard Willis; Licensed MIT\n */(function(window, $) {
 
   /* Config
    *************************/
