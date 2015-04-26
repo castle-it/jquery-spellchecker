@@ -1,7 +1,7 @@
 /*global module:false*/
 
 module.exports = function(grunt) {
-
+  //MODIFIED BY Castle-IT
   grunt.initConfig({
     pkg: grunt.file.readJSON('jquery.spellchecker.json'),
     meta: {
