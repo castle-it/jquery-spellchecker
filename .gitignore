@@ -3,3 +3,4 @@ composer.lock
 node_modules/
 .idea/
 .grunt/
+bower_components/

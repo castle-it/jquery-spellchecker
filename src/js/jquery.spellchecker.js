@@ -1,5 +1,5 @@
 /*
- * jQuery Spellchecker - v0.2.5
+ * jQuery Spellchecker - v0.2.6
  * https://github.com/castle-it/jquery-spellchecker
  * Copyright (c) 2012 Richard Willis; Licensed MIT
  * Modified by Castle-IT
@@ -241,7 +241,7 @@
   IncorrectWordsInline.prototype.destroy = function() {
     this.element.off('.' + pluginName);
     try {
-      this.findAndReplaceDOMText.findAndReplaceDOMText.revert();
+      this.findAndReplaceDOMText.revert();
     } catch(e) {
     }
   };
@@ -465,9 +465,11 @@
   /* Spellchecker base parser
    *************************/
 
-  var Parser = function(elements, findAndReplaceDOMText) {
+  var Parser = function(elements, findAndReplaceDOMText, config) {
     this.elements = elements;
     this.findAndReplaceDOMText = findAndReplaceDOMText;
+    this.replacementContainer = null;
+    this.config = config;
   };
 
   Parser.prototype.clean = function(text) {
@@ -552,13 +554,18 @@
   };
 
   HtmlParser.prototype.replaceText = function(regExp, element, replaceText, captureGroup) {
-   this.findAndReplaceDOMText.findAndReplaceDOMText(regExp, element, replaceText, captureGroup);
+     this.replacementContainer = this.findAndReplaceDOMText(element,
+        {
+          find: regExp,
+          replace: replaceText,
+          filterElements: this.config.filterElements
+        });
   };
 
   HtmlParser.prototype.replaceWord = function(oldWord, replacement, element) {
 
     try {
-      this.findAndReplaceDOMText.revert();
+      this.replacementContainer.revert();
     } catch(e) {}
 
     //MODIFIED BY Kirk Spencer
@@ -639,10 +646,10 @@
       }
 
       span
-          .text(fill)
+          .text(fill.text)
           .data({
             'firstElement': replaceElement,
-            'word': word
+            'word': fill.text
           });
 
       return span[0];
@@ -666,7 +673,7 @@
     var defaultConfigCopy = $.extend(true, {}, defaultConfig);
     this.config = $.extend(true, defaultConfigCopy, config);
 
-    this.findAndReplaceDOMText = new FindAndReplaceDOMText();
+    this.findAndReplaceDOMText = findAndReplaceDOMText;
     this.setupWebService();
     this.setupParser();
 
@@ -720,8 +727,8 @@
 
   SpellChecker.prototype.setupParser = function() {
     this.parser = this.config.parser === 'html' ?
-        new HtmlParser(this.elements, this.findAndReplaceDOMText) :
-        new TextParser(this.elements, this.findAndReplaceDOMText);
+        new HtmlParser(this.elements, this.findAndReplaceDOMText, this.config) :
+        new TextParser(this.elements, this.findAndReplaceDOMText, this.config);
   };
 
   SpellChecker.prototype.bindEvents = function() {
@@ -826,320 +833,5 @@
 
   $.SpellChecker = SpellChecker;
 
-
-/**
- * Some small changes were made by Richard Willis to allow this
- * code to pass the project-configured jshint
- *
- * findAndReplaceDOMText v 0.2
- * @author James Padolsey http://james.padolsey.com
- * @license http://unlicense.org/UNLICENSE
- *
- * MODIFIED BY Castle-IT
- * Now tracks groups for each instance of spellchecker.
- * Matches the text of a DOM node against a regular expression
- * and replaces each match (or node-separated portions of the match)
- * in the specified element.
- *
- *
- * Example: Wrap 'test' in <em>:
- *   <p id="target">This is a test</p>
- *   <script>
- *     findAndReplaceDOMText(
- *       /test/,
- *       document.getElementById('target'),
- *       'em'
- *     );
- *   </script>
- */
-
-  var FindAndReplaceDOMText = function() {
-
-    this.reverts = [];
-
-  };
-  /**
-   * findAndReplaceDOMText
-   *
-   * Locates matches and replaces with replacementNode
-   *
-   * @param {RegExp} regex The regular expression to match
-   * @param {Node} node Element or Text node to search within
-   * @param {String|Element|Function} replacementNode A NodeName,
-   *  Node to clone, or a function which returns a node to use
-   *  as the replacement node.
-   * @param {Number} captureGroup A number specifiying which capture
-   *  group to use in the match. (optional)
-   */
-  FindAndReplaceDOMText.prototype.findAndReplaceDOMText = function (regex, node, replacementNode, captureGroup) {
-
-    //MODIFIED BY Kirk Spencer
-    var m, matches = [];
-    var text = this._getText(node);
-    var text2 = node.innerText;
-    //End MODIFIED BY Kirk Spencer
-    var replaceFn = this._genReplacer(replacementNode);
-
-    if (!text) { return; }
-
-    //MODIFIED BY Kirk Spencer
-    var firstChar = text2.replace(/^\s+|\s+$/g, '')[0];
-    var paddingLength = text.indexOf(firstChar);
-    text2 = text.substr(0, paddingLength) + text2;
-
-    text = " " + text + " ";
-    text2 = " " + text2 + " ";
-    this.whitespaces = this._getWhitespaces(text);
-
-    if (regex.global) {
-      while (!!(m = regex.exec(text2))) {
-        matches.push(this._getMatchIndexes(m, text, text2, this.whitespaces));
-      }
-    } else {
-      m = text2.match(regex);
-      matches.push(this._getMatchIndexes(m, text, text2, this.whitespaces));
-    }
-    //End MODIFIED BY Kirk Spencer
-
-    if (matches.length) {
-      this._stepThroughMatches(node, matches, replaceFn);
-    }
-  };
-
-  //MODIFIED BY Kirk Spencer
-  FindAndReplaceDOMText.prototype._getWhitespaces = function (text) {
-    var whitespaceRegex = /\s+/g;
-    var whitespaces = [];
-    var match;
-    while (!!(match = whitespaceRegex.exec(text))) {
-      whitespaces.push({ value: match[0], position: match.index });
-    }
-    return whitespaces;
-  };
-
-  /**
-   * Gets the start and end indexes of a match
-   */
-  FindAndReplaceDOMText.prototype._getMatchIndexes = function (m, text, text2, whitespaces) {
-    var length = m.index;
-    var preText = text2.substr(0, length);
-    var whitespaceRegex = /\s+/g;
-    preText = preText.replace(whitespaceRegex, '');
-    length = whitespaces.length;
-    for (var i = 0; i < length; i++) {
-      if (whitespaces[i].position <= preText.length) {
-        preText = [preText.slice(0, whitespaces[i].position), whitespaces[i].value, preText.slice(whitespaces[i].position)].join('');
-      } else {
-        break;
-      }
-    }
-    var index = preText.length - 1;
-    return [index, index + m[0].length, [m[0]]];
-  };
-  //End MODIFIED BY Kirk Spencer
-
-  /**
-   * Gets aggregate text of a node without resorting
-   * to broken innerText/textContent
-   */
-  FindAndReplaceDOMText.prototype._getText = function (node) {
-
-    if (node.nodeType === 3) {
-      return node.data;
-    }
-
-    var txt = '';
-
-    if (!!(node = node.firstChild)) do {
-      txt += this._getText(node);
-    } while (!!(node = node.nextSibling));
-
-    return txt;
-
-  };
-
-  /**
-   * Steps through the target node, looking for matches, and
-   * calling replaceFn when a match is found.
-   */
-  FindAndReplaceDOMText.prototype._stepThroughMatches = function (node, matches, replaceFn) {
-
-    var after, before,
-        startNode,
-        endNode,
-        startNodeIndex,
-        endNodeIndex,
-        innerNodes = [],
-        atIndex = 0,
-        curNode = node,
-        matchLocation = matches.shift(),
-        matchIndex = 0;
-
-    out: while (true) {
-
-      if (curNode.nodeType === 3) {
-        if (!endNode && curNode.length + atIndex >= matchLocation[1]) {
-          // We've found the ending
-          endNode = curNode;
-          endNodeIndex = matchLocation[1] - atIndex;
-        } else if (startNode) {
-          // Intersecting node
-          innerNodes.push(curNode);
-        }
-        if (!startNode && curNode.length + atIndex > matchLocation[0]) {
-          // We've found the match start
-          startNode = curNode;
-          startNodeIndex = matchLocation[0] - atIndex;
-        }
-        atIndex += curNode.length;
-      }
-
-      if (startNode && endNode) {
-        curNode = replaceFn({
-          startNode: startNode,
-          startNodeIndex: startNodeIndex,
-          endNode: endNode,
-          endNodeIndex: endNodeIndex,
-          innerNodes: innerNodes,
-          match: matchLocation[2],
-          matchIndex: matchIndex
-        });
-        // replaceFn has to return the node that replaced the endNode
-        // and then we step back so we can continue from the end of the 
-        // match:
-        atIndex -= (endNode.length - endNodeIndex);
-        startNode = null;
-        endNode = null;
-        innerNodes = [];
-        matchLocation = matches.shift();
-        matchIndex++;
-        if (!matchLocation) {
-          break; // no more matches
-        }
-      } else if (curNode.firstChild || curNode.nextSibling) {
-        // Move down or forward:
-        curNode = curNode.firstChild || curNode.nextSibling;
-        continue;
-      }
-
-      // Move forward or up:
-      while (true) {
-        if (curNode.nextSibling) {
-          curNode = curNode.nextSibling;
-          break;
-        } else if (curNode.parentNode !== node) {
-          curNode = curNode.parentNode;
-        } else {
-          break out;
-        }
-      }
-
-    }
-
-  };
-
-  //var reverts = [];
-  /**
-   * Reverts the last findAndReplaceDOMText process
-   */
-  FindAndReplaceDOMText.prototype.revert = function () {
-    for (var i = 0, l = this.reverts.length; i < l; ++i) {
-      this.reverts[i]();
-    }
-    this.reverts = [];
-  };
-
-  /**
-   * Generates the actual replaceFn which splits up text nodes
-   * and inserts the replacement element.
-   */
-  FindAndReplaceDOMText.prototype._genReplacer = function (nodeName) {
-
-    //reverts = [];
-
-    var makeReplacementNode;
-    var reverts = this.reverts;
-    if (typeof nodeName !== 'function') {
-      var stencilNode = nodeName.nodeType ? nodeName : document.createElement(nodeName);
-      makeReplacementNode = function(fill) {
-        var clone = document.createElement('div'),
-            el;
-        clone.innerHTML = stencilNode.outerHTML || new window.XMLSerializer().serializeToString(stencilNode);
-        el = clone.firstChild;
-        if (fill) {
-          el.appendChild(document.createTextNode(fill));
-        }
-        return el;
-      };
-    } else {
-      makeReplacementNode = nodeName;
-    }
-
-    return function replace(range) {
-
-      var startNode = range.startNode,
-          endNode = range.endNode,
-          matchIndex = range.matchIndex,
-          before, after;
-
-      if (startNode === endNode) {
-        var node = startNode;
-        if (range.startNodeIndex > 0) {
-          // Add `before` text node (before the match)
-          before = document.createTextNode(node.data.substring(0, range.startNodeIndex));
-          node.parentNode.insertBefore(before, node);
-        }
-
-        // Create the replacement node:
-        var el = makeReplacementNode(range.match[0], matchIndex, range.match[0]);
-        node.parentNode.insertBefore(el, node);
-        if (range.endNodeIndex < node.length) {
-          // Add `after` text node (after the match)
-          after = document.createTextNode(node.data.substring(range.endNodeIndex));
-          node.parentNode.insertBefore(after, node);
-        }
-        node.parentNode.removeChild(node);
-        reverts.push(function() {
-          var pnode = el.parentNode;
-          pnode.insertBefore(el.firstChild, el);
-          pnode.removeChild(el);
-          pnode.normalize();
-        });
-        return el;
-      } else {
-        // Replace startNode -> [innerNodes...] -> endNode (in that order)
-        before = document.createTextNode(startNode.data.substring(0, range.startNodeIndex));
-        after = document.createTextNode(endNode.data.substring(range.endNodeIndex));
-        var elA = makeReplacementNode(startNode.data.substring(range.startNodeIndex), matchIndex, range.match[0]);
-        var innerEls = [];
-        for (var i = 0, l = range.innerNodes.length; i < l; ++i) {
-          var innerNode = range.innerNodes[i];
-          var innerEl = makeReplacementNode(innerNode.data, matchIndex, range.match[0]);
-          innerNode.parentNode.replaceChild(innerEl, innerNode);
-          innerEls.push(innerEl);
-        }
-        var elB = makeReplacementNode(endNode.data.substring(0, range.endNodeIndex), matchIndex, range.match[0]);
-        startNode.parentNode.insertBefore(before, startNode);
-        startNode.parentNode.insertBefore(elA, startNode);
-        startNode.parentNode.removeChild(startNode);
-        endNode.parentNode.insertBefore(elB, endNode);
-        endNode.parentNode.insertBefore(after, endNode);
-        endNode.parentNode.removeChild(endNode);
-        reverts.push(function() {
-          innerEls.unshift(elA);
-          innerEls.push(elB);
-          for (var i = 0, l = innerEls.length; i < l; ++i) {
-            var el = innerEls[i];
-            var pnode = el.parentNode;
-            pnode.insertBefore(el.firstChild, el);
-            pnode.removeChild(el);
-            pnode.normalize();
-          }
-        });
-        return elB;
-      }
-    };
-
-  };
 
 }(this, jQuery));

@@ -90,7 +90,8 @@ module.exports = function(grunt) {
         globals: {
           jQuery: false,
           $: false,
-          alert: false
+          alert: false,
+          findAndReplaceDOMText: false
         }
       }
     },

@@ -2,7 +2,7 @@
   "name": "jquery.spellchecker",
   "title": "jQuery Spellchecker",
   "description": "A jquery spellchecker plugin",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "homepage": "https://github.com/castle-it/jquery-spellchecker",
   "author": {
     "name": "Richard Willis",
